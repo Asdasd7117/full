@@ -1,15 +1,24 @@
 workflows:
   flutter-android:
-    name: Build Android APK
+    name: Build Lightweight APK
     max_build_duration: 60
     environment:
       flutter: stable
+
     scripts:
-      - name: Install dependencies
+      - name: Get dependencies
         script: |
           flutter pub get
-      - name: Build APK
+
+      - name: Clean previous builds
         script: |
-          flutter build apk --release
+          flutter clean
+
+      - name: Build split APKs (smaller size)
+        script: |
+          flutter build apk --release --split-per-abi --no-tree-shake-icons --split-debug-info=build/debug-info
+
     artifacts:
-      - build/app/outputs/flutter-apk/app-release.apk
+      - build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
+      - build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+      - build/app/outputs/flutter-apk/app-x86_64-release.apk
