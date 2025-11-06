@@ -1,14 +1,47 @@
-name: my_flutter_app
-description: تطبيق ترحيبي بسيط
-version: 1.0.0+1
+workflows:
+  flutter-android:
+    name: Flutter Android APK (Unsigned)
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      vars:
+        PROJECT_DIR: .
+        BUILD_MODE: debug   # debug APK بدون توقيع
+        ANDROID_SDK_VERSION: "33"
 
-environment:
-  sdk: ">=2.19.0 <3.0.0"
+    scripts:
+      - name: Install dependencies
+        script: |
+          set -e
+          flutter --version
+          yes | sdkmanager "platforms;android-${ANDROID_SDK_VERSION}" >/dev/null 2>&1 || true
 
-dependencies:
-  flutter:
-    sdk: flutter
+      - name: Flutter pub get
+        script: |
+          set -e
+          cd $PROJECT_DIR
+          flutter pub get
 
-dev_dependencies:
-  flutter_test:
-    sdk: flutter
+      - name: Build APK (Unsigned)
+        script: |
+          set -e
+          cd $PROJECT_DIR
+          flutter clean
+          flutter build apk --debug
+
+      - name: Collect APK artifact
+        script: |
+          set -e
+          cd $PROJECT_DIR
+          APK_PATH="build/app/outputs/flutter-apk/app-debug.apk"
+          if [ -f "$APK_PATH" ]; then
+            echo "APK found at $APK_PATH"
+            mkdir -p build_artifacts
+            cp "$APK_PATH" build_artifacts/
+          else
+            echo "APK not found!"
+            exit 1
+          fi
+
+    artifacts:
+      - build_artifacts/**
