@@ -1,154 +1,150 @@
 import 'package:flutter/material.dart';
+import 'package:device_apps/device_apps.dart';
 
 void main() {
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
+  const MyApp({super.key});
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      home: HomeScreen(),
+      title: 'App Copies Helper',
+      theme: ThemeData(primarySwatch: Colors.blue),
+      home: const AppListPage(),
     );
   }
 }
 
-class HomeScreen extends StatefulWidget {
+class AppListPage extends StatefulWidget {
+  const AppListPage({super.key});
   @override
-  _HomeScreenState createState() => _HomeScreenState();
+  State<AppListPage> createState() => _AppListPageState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
-  double _scale = 1.0;
-  double _baseScale = 1.0;
+class _AppListPageState extends State<AppListPage> {
+  List<Application>? _apps;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchInstalledApps();
+  }
+
+  Future<void> _fetchInstalledApps() async {
+    setState(() => _loading = true);
+    List<Application> apps = await DeviceApps.getInstalledApplications(
+      includeAppIcons: false,
+      includeSystemApps: false,
+      onlyAppsWithLaunchIntent: true,
+    );
+    apps.sort((a, b) => a.appName.toLowerCase().compareTo(b.appName.toLowerCase()));
+    setState(() {
+      _apps = apps;
+      _loading = false;
+    });
+  }
+
+  Widget _buildAppTile(Application app) {
+    return ListTile(
+      title: Text(app.appName),
+      subtitle: Text(app.packageName),
+      trailing: IconButton(
+        icon: const Icon(Icons.open_in_new),
+        onPressed: () {
+          DeviceApps.openApp(app.packageName);
+        },
+      ),
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => AppCopiesPage(app: app)),
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.black,
-        title: Text('DropZone', style: TextStyle(color: Colors.white)),
-        leading: IconButton(icon: Icon(Icons.menu), onPressed: () {}),
-      ),
-      backgroundColor: Color(0xFFE6E6FA), // لون أرجواني فاتح مشابه للخلفية
-      body: Column(
-        children: [
-          Expanded(
-            child: GestureDetector(
-              onScaleStart: (details) {
-                _baseScale = _scale;
-              },
-              onScaleUpdate: (details) {
-                setState(() {
-                  _scale = _baseScale * details.scale.clamp(0.8, 2.0);
-                });
-              },
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    _buildWindow('Login', Icons.person, [
-                      TextField(decoration: InputDecoration(labelText: 'Username')),
-                      TextField(decoration: InputDecoration(labelText: 'Password')),
-                      SizedBox(height: 10),
-                      ElevatedButton(onPressed: () {}, child: Text('Login')),
-                    ]),
-                    _buildWindow('Sign Up', Icons.person_add, [
-                      TextField(decoration: InputDecoration(labelText: 'Email')),
-                      TextField(decoration: InputDecoration(labelText: 'Password')),
-                      SizedBox(height: 10),
-                      ElevatedButton(onPressed: () {}, child: Text('Sign Up')),
-                    ]),
-                    _buildWindow('Map', Icons.map, [
-                      Container(
-                        height: 200,
-                        color: Colors.grey[300],
-                        child: Center(child: Text('Map View')),
-                      ),
-                    ]),
-                    _buildWindow('Choose Food', Icons.fastfood, [
-                      Text('Choose your food', style: TextStyle(fontSize: 18)),
-                      Image.asset('assets/food_icon.png', height: 50), // أضف صورة إذا كانت متوفرة
-                      ElevatedButton(onPressed: () {}, child: Text('Get Started')),
-                    ]),
-                    _buildWindow('List 1', Icons.list, [
-                      ListView.builder(
-                        shrinkWrap: true,
-                        itemCount: 3,
-                        itemBuilder: (context, index) => ListTile(
-                          leading: Icon(Icons.restaurant),
-                          title: Text('Restaurant ${index + 1}'),
-                          subtitle: Text('4.5 ★'),
-                        ),
-                      ),
-                    ]),
-                    _buildWindow('List 2', Icons.list, [
-                      ListView.builder(
-                        shrinkWrap: true,
-                        itemCount: 3,
-                        itemBuilder: (context, index) => ListTile(
-                          leading: Icon(Icons.restaurant),
-                          title: Text('Restaurant ${index + 4}'),
-                          subtitle: Text('4.5 ★'),
-                        ),
-                      ),
-                    ]),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                ElevatedButton(
-                  onPressed: () {},
-                  style: ElevatedButton.styleFrom(
-                    primary: Colors.blue,
-                    minimumSize: Size(double.infinity, 50),
-                  ),
-                  child: Text('Sign up', style: TextStyle(fontSize: 18)),
-                ),
-                SizedBox(height: 10),
-                OutlinedButton(
-                  onPressed: () {},
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: Size(double.infinity, 50),
-                  ),
-                  child: Text('Log In', style: TextStyle(fontSize: 18)),
-                ),
-              ],
-            ),
+        title: const Text('قائمة التطبيقات المثبتة'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _fetchInstalledApps,
           ),
         ],
       ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _apps == null || _apps!.isEmpty
+              ? const Center(child: Text('لا توجد تطبيقات مستخدم مثبتة.'))
+              : ListView.builder(
+                  itemCount: _apps!.length,
+                  itemBuilder: (context, i) => _buildAppTile(_apps![i]),
+                ),
     );
   }
+}
 
-  Widget _buildWindow(String title, IconData icon, List<Widget> content) {
-    return Transform.scale(
-      scale: _scale,
-      child: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Card(
-          elevation: 4,
-          color: Colors.white,
-          child: Container(
-            width: 200,
-            height: 300,
-            padding: EdgeInsets.all(16),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(icon, size: 40, color: Colors.purple),
-                SizedBox(height: 10),
-                Text(title, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                SizedBox(height: 10),
-                ...content,
-              ],
+class AppCopiesPage extends StatelessWidget {
+  final Application app;
+  const AppCopiesPage({super.key, required this.app});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('نسخ ${app.appName}'),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            Text('اختر أي من الأزرار لفتح التطبيق كـ "نسخة"'),
+            const SizedBox(height: 16),
+            Expanded(
+              child: ListView.builder(
+                itemCount: 4,
+                itemBuilder: (context, index) {
+                  final copyNumber = index + 1;
+                  return Card(
+                    margin: const EdgeInsets.symmetric(vertical: 8),
+                    child: ListTile(
+                      leading: CircleAvatar(child: Text('$copyNumber')),
+                      title: Text('نسخة $copyNumber - ${app.appName}'),
+                      subtitle: Text('اضغط لفتح التطبيق'),
+                      onTap: () {
+                        // هنا نفتح التطبيق مباشرةً — لا ننسخه فعليًا.
+                        DeviceApps.openApp(app.packageName);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('تم فتح ${app.appName} (نسخة $copyNumber)')),
+                        );
+                      },
+                      trailing: IconButton(
+                        icon: const Icon(Icons.edit),
+                        onPressed: () {
+                          // مكان لتخصيص الاسم أو ملاحظة للنسخة — يمكنك توسيع الوظيفة لاحقًا.
+                          showDialog(
+                            context: context,
+                            builder: (_) => AlertDialog(
+                              title: const Text('تعديل اسم النسخة'),
+                              content: const Text('ميزة التخصيص قيد التطوير.'),
+                              actions: [
+                                TextButton(onPressed: () => Navigator.pop(context), child: const Text('حسناً'))
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  );
+                },
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
